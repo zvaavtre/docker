@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# Launch the jar file found in the CWD with the various env params passed
+# to the java command line. 
+#
+
+ZV_ENV="${ZV_ENV:-}"
+ZV_DEBUG="${ZV_DEBUG:-false}"
+ZV_ARTIFACT_ID="${ZV_ARTIFACT_ID:-}"
+ZV_JAR="${ZV_JAR:-$(ls *.jar)}"
+ZV_DOCKER_TAG="${ZV_DOCKER_TAG:-}"
+ZV_SPLUNK_TOKEN="${ZV_SPLUNK_TOKEN:-}"
+ZV_SPLUNK_URL="${ZV_SPLUNK_URL:-}"
+
+cat <<-EOF
+Launching jar: ${ZV_JAR} 
+---
+ZV_ENV:                   ${ZV_ENV}
+ZV_DEBUG:                 ${ZV_DEBUG}
+ZV_ARTIFACT_ID:           ${ZV_ARTIFACT_ID}
+ZV_JAR:                   ${ZV_JAR}
+ZV_DOCKER_TAG:            ${ZV_DOCKER_TAG}
+ZV_SPLUNK_TOKEN:          ${ZV_SPLUNK_TOKEN}
+ZV_SPLUNK_URL:            ${ZV_SPLUNK_URL}
+
+EOF
+
+
+if [ ! -z "${ZV_SPLUNK_TOKEN}" ] ; then
+	echo "ZV_SPLUNK_TOKEN set, will launch with collector URL: ${ZV_SPLUNK_URL}"
+    SPLUNK_CMD=" -Dsplunk.url=${ZV_SPLUNK_URL} -Dsplunk.token=${ZV_SPLUNK_TOKEN} -Dartifact.id=${ZV_ARTIFACT_ID} -Dlogging.config=logback-splunk-hec.xml "
+fi
+
+if "ZV_DEBUG" ; then
+    echo "Enabling debugging port 8000"
+    DEBUG_CMD=" -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000 "
+fi
+
+set -x
+
+exec java -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=1 \
+    ${SPLUNK_CMD:-} \
+    ${DEBUG_CMD:-} \
+    -Dzv.docker.tag=${ZV_DOCKER_TAG} \
+    -Djava.io.tmpdir=/tmp \
+    -jar ${ZV_JAR}
